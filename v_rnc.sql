@@ -1,6 +1,9 @@
-  CREATE OR REPLACE FORCE EDITIONABLE VIEW "DWU"."V_RNC" ("CD_EMPRESA", "NRO_RNC", "DT_RNC", "DIA_RNC", "MES_RNC", "ANO_RNC", "TRI_RNC", "ANOMES_RNC", "SEMANA_RNC", "EMITENTE", "AREA_EMITENTE", "CD_PRODUTO", "CD_VERSAO", "ID_PEDIDO", "CD_CLIENTE", "IT_PEDIDO", "NR_OP", "NR_NOTA", "NR_SERIE_NOTA", "CCUSTO_NAOCONFORME", "DESC_RNC", "CD_RECURSO", "CD_MOTIVO", "DESC_ACAO", "CD_ETAPA", "CD_TIPO", "CD_AVAL", "CD_ACAO_CORRETIVA", "ACAO_EFICAZ", "SITUACAO", "USUARIO", "TURNO", "QTDE_APARA", "ACAO_CORRETIVA", "QT_RNC_META", "TIPO_DADOS", "ORD", "CD_TURNO", "CD_CLIENTE_RED", "CD_CLIENTE_FILIAL", "CD_REPRESENTANTE", "CD_CLASSE", "CD_GRUPO", "CD_SUBGRUPO", "CD_FAMILIA") AS 
-  
-  select  isornc.empresa                                                                                                                    AS CD_EMPRESA,
+ /*
+  Ticket#64000559 - RNCs sem OP/Pedido vinculado não aparecem 
+*/
+
+  CREATE OR REPLACE FORCE EDITIONABLE VIEW "DWU"."V_RNC" ("CD_empresa", "NRO_RNC", "DT_RNC", "DIA_RNC", "MES_RNC", "ANO_RNC", "TRI_RNC", "ANOMES_RNC", "SEMANA_RNC", "EMITENTE", "AREA_EMITENTE", "CD_PRODUTO", "CD_VERSAO", "ID_PEDIDO", "CD_CLIENTE", "IT_PEDIDO", "NR_OP", "NR_NOTA", "NR_SERIE_NOTA", "CCUSTO_NAOCONFORME", "DESC_RNC", "CD_RECURSO", "CD_MOTIVO", "DESC_ACAO", "CD_ETAPA", "CD_TIPO", "CD_AVAL", "CD_ACAO_CORRETIVA", "ACAO_EFICAZ", "SITUACAO", "USUARIO", "TURNO", "QTDE_APARA", "ACAO_CORRETIVA", "QT_RNC_META", "TIPO_DADOS", "ORD", "CD_TURNO", "CD_CLIENTE_RED", "CD_CLIENTE_FILIAL", "CD_REPRESENTANTE", "CD_CLASSE", "CD_GRUPO", "CD_SUBGRUPO", "CD_FAMILIA") AS 
+  select  isornc.empresa                                                                                                                    AS CD_empresa,
           isornc.codigo                                                                                                                     AS NRO_RNC,
           to_char(isornc.data_rnc, 'DD/MM/YYYY')                                                                                            AS DT_RNC,
           to_char(isornc.data_rnc,'DD')                                                                                                     AS DIA_RNC,
@@ -11,14 +14,17 @@
           to_char(isornc.data_rnc,'W')                                                                                                      AS SEMANA_RNC,
           isornc.emitente                                                                                                                   AS EMITENTE,
           isornc.area_emitente                                                                                                              AS AREA_EMITENTE,
-          isornc.EMPRESA||'-'||isornc.produto                                                                                                                    AS CD_PRODUTO,
+
+          -- Ticket#64000559 - RNCs sem OP/Pedido vinculado não aparecem 
+          decode(isornc.produto,null,'0',isornc.empresa||'-'||isornc.produto)                                                               AS CD_PRODUTO,
           isornc.versao                                                                                                                     AS CD_VERSAO,
           isornc.pedido                                                                                                                     AS ID_PEDIDO,
+
           (select max(cadcorr.codigo_matriz)
             from admin.cadcorr, admin.venpedido
           where cadcorr.codigo = venpedido.cliente
             and venpedido.empresa = isornc.empresa
-            and venpedido.pedido = isornc.pedido)                                                                                         AS CD_CLIENTE,
+            and venpedido.pedido = isornc.pedido)                                                                                           AS CD_CLIENTE,
           
           isornc.item_pedido                                                                                                                AS IT_PEDIDO,
           isornc.op                                                                                                                         AS NR_OP,
@@ -30,7 +36,7 @@
           isornc.motivo                                                                                                                     AS CD_MOTIVO,
           isornc.acao_imediata                                                                                                              AS DESC_ACAO,
           isornc.etapa                                                                                                                      AS CD_ETAPA,
-          TRIM(isornc.tipo)                                                                                                                 AS CD_TIPO,
+          trim(isornc.tipo)                                                                                                                 AS CD_TIPO,
           isornc.avaliacao                                                                                                                  AS CD_AVAL,
           isornc.acao_corretiva                                                                                                             AS CD_ACAO_CORRETIVA,
           isornc.acao_eficaz                                                                                                                AS ACAO_EFICAZ,
@@ -39,12 +45,12 @@
           (select nvl(max(isorncdefeito.colaborador),0)
             from admin.isorncdefeito
           where empresa = isornc.empresa
-            and rnc = isornc.codigo)                                                                                                      AS USUARIO,
+            and rnc = isornc.codigo)                                                                                                        AS USUARIO,
           
           (select nvl(max(isorncdefeito.turno),'0')
             from admin.isorncdefeito
           where empresa = isornc.empresa
-            and rnc = isornc.codigo)                                                                                                       AS TURNO,                                                                                             
+            and rnc = isornc.codigo)                                                                                                        AS TURNO,                                                                                             
           
           (select nvl(SUM(isorncdefeito.QUANTIDADE),'0')
             from admin.isorncdefeito
@@ -62,32 +68,33 @@
           (select nvl(max(isorncdefeito.turno),'0')
             from admin.isorncdefeito
           where empresa = isornc.empresa
-            and rnc = isornc.codigo)                                                                                                       AS CD_TURNO,
+            and rnc = isornc.codigo)                                                                                                        AS CD_TURNO,
           
           (select max(cadcorr.codigo_matriz)
             from admin.cadcorr, admin.venpedido
           where cadcorr.codigo = venpedido.cliente
             and venpedido.empresa = isornc.empresa
-            and venpedido.pedido = isornc.pedido)                                                                                         AS CD_CLIENTE_RED,
+            and venpedido.pedido = isornc.pedido)                                                                                           AS CD_CLIENTE_RED,
           
           (select max(venpedido.cliente)
             from admin.venpedido
           where venpedido.empresa = isornc.empresa
-            and venpedido.pedido = isornc.pedido)                                                                                         AS CD_CLIENTE_FILIAL,
+            and venpedido.pedido = isornc.pedido)                                                                                           AS CD_CLIENTE_FILIAL,
           
           (select '1-'||max(venpedido.vendedor)
             from admin.venpedido
           where venpedido.empresa = isornc.empresa
-            and venpedido.pedido = isornc.pedido)                                                                                         AS CD_REPRESENTANTE,      
-           ITEM.EMPRESA||'-'||TRIM(ITEM.CLASSE_PRODUTO)                                                                                                            AS CD_CLASSE,
-           TRIM(ITEM.EMPRESA||'-'||ITEM.GRUPO)                                                                                                         AS CD_GRUPO, 
-           TRIM(ITEM.EMPRESA||'-'||ITEM.GRUPO||'-'||ITEM.SUBGRUPO)                                                                                     AS CD_SUBGRUPO,
-           TRIM(ITEM.EMPRESA||'-'||ITEM.FAMILIA)                                                                                                       AS CD_FAMILIA
+            and venpedido.pedido = isornc.pedido)                                                                                           AS CD_REPRESENTANTE,     
+
+           item.empresa||'-'||trim(item.CLASSE_PRODUTO)                                                                                     AS CD_CLASSE,
+           trim(item.empresa||'-'||item.GRUPO)                                                                                              AS CD_GRUPO, 
+           trim(item.empresa||'-'||item.GRUPO||'-'||item.SUBGRUPO)                                                                          AS CD_SUBGRUPO,
+           trim(item.empresa||'-'||item.FAMILIA)                                                                                            AS CD_FAMILIA
 
    from admin.isornc 
    
    INNER JOIN ADMIN.ESTITEM ITEM 
-    ON ITEM.EMPRESA(+) = isornc.EMPRESA AND ITEM.CODIGO(+) = isornc.PRODUTO
+    ON item.empresa(+) = isornc.empresa AND item.CODIGO(+) = isornc.PRODUTO
    /*LEFT JOIN VM_CAD_RNC_META MET
         ON  ANO_META  = to_char(isornc.data_rnc,'YYYY')
         AND MES_META = to_char(isornc.data_rnc,'MM')
@@ -95,12 +102,11 @@
 
     where isornc.empresa = 1
       and to_char(isornc.data_rnc,'YYYY') in ('2018', '2019', '2020', '2021', '2022', '2023')
-      and isornc.codigo = '60944'
 
       UNION ALL
 
       select 
-         0                                                                                                                                 AS CD_EMPRESA,
+         0                                                                                                                                 AS CD_empresa,
          0                                                                                                                                 AS NRO_RNC,
          '01/'||MES_META||'/'||ANO_META                                                                                                    AS DT_RNC,
          '01'                                                                                                                              AS DIA_RNC,
